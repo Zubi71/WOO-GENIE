@@ -1,7 +1,3 @@
-import { GoogleGenAI } from "@google/genai";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-
 export interface PluginResponse {
   pluginName: string;
   description: string;
@@ -10,41 +6,25 @@ export interface PluginResponse {
 }
 
 export async function generateWooCommercePlugin(prompt: string): Promise<PluginResponse> {
-  const systemInstruction = `
-    You are an expert WordPress and WooCommerce developer. 
-    Your task is to generate a high-quality, secure, and functional WordPress plugin based on the user's request.
-    
-    Guidelines:
-    1. Follow WordPress coding standards.
-    2. Use appropriate WooCommerce hooks (actions and filters).
-    3. Include a standard WordPress plugin header.
-    4. Ensure the code is well-commented.
-    5. Use a unique prefix for all functions and classes to avoid conflicts.
-    6. Provide a clear explanation of what the plugin does and how to install it.
-    
-    Output format: JSON
-    {
-      "pluginName": "String",
-      "description": "Short description",
-      "code": "The full PHP code for the plugin",
-      "installationSteps": ["Step 1", "Step 2", ...]
-    }
-  `;
-
-  const response = await ai.models.generateContent({
-    model: "gemini-3.1-pro-preview",
-    contents: `User request: ${prompt}`,
-    config: {
-      systemInstruction,
-      responseMimeType: "application/json",
+  const response = await fetch('/api/generate', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
     },
+    body: JSON.stringify({ prompt }),
   });
 
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || "Failed to generate plugin code. Please try again.");
+  }
+
   try {
-    const result = JSON.parse(response.text || "{}");
+    const result = await response.json();
     return result as PluginResponse;
   } catch (error) {
-    console.error("Failed to parse Gemini response", error);
+    console.error("Failed to parse response", error);
     throw new Error("Failed to generate plugin code. Please try again.");
   }
 }
+
